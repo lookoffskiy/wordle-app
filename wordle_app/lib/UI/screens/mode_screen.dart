@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'game_screen.dart';
 import 'package:flutter/services.dart';
@@ -10,8 +11,36 @@ class UpperCaseTextFormatter extends TextInputFormatter {
     return newValue.copyWith(text: newValue.text.toUpperCase());
   }
 }
-class ModeScreen extends StatelessWidget {
+
+class ModeScreen extends StatefulWidget {
   const ModeScreen({super.key});
+
+  @override
+  State<ModeScreen> createState() => _ModeScreenState();
+}
+
+class _ModeScreenState extends State<ModeScreen> {
+  bool _useApi = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadApiPreference();
+  }
+
+  // Загрузка настройки API из SharedPreferences
+  Future<void> _loadApiPreference() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _useApi = prefs.getBool('use_api') ?? true;
+    });
+  }
+
+  // Сохранение настройки API в SharedPreferences
+  Future<void> _saveApiPreference(bool value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('use_api', value);
+  }
 
   // Диалог ввода своего слова
   Future<void> _showCustomWordDialog(BuildContext context) async {
@@ -80,7 +109,11 @@ class ModeScreen extends StatelessWidget {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (_) => GameScreen(wordLength: word.length, targetWord: word),
+          builder: (_) => GameScreen(
+            wordLength: word.length,
+            targetWord: word,
+            useApi: _useApi,
+          ),
         ),
       );
     }
@@ -90,7 +123,39 @@ class ModeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFF121212),
-      appBar: AppBar(backgroundColor: Colors.transparent, elevation: 0),
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        actions: [
+          // Переключатель API в AppBar
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: Row(
+              children: [
+                Text(
+                  "API",
+                  style: GoogleFonts.pangolin(
+                    fontSize: 14,
+                    color: Colors.white70,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Switch(
+                  value: _useApi,
+                  onChanged: (value) {
+                    setState(() {
+                      _useApi = value;
+                    });
+                    _saveApiPreference(value);
+                  },
+                  activeColor: Colors.green[400],
+                  inactiveThumbColor: Colors.grey[600],
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Column(
           children: [
@@ -106,7 +171,40 @@ class ModeScreen extends StatelessWidget {
                 ])),
             Text("на русском", style: GoogleFonts.pangolin(
                 fontSize: 18, color: Colors.white60, letterSpacing: 4)),
-            const SizedBox(height: 60),
+
+            // Информация о режиме API
+            Container(
+              margin: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: _useApi ? Colors.green[900]!.withOpacity(0.3) : Colors.blue[900]!.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: _useApi ? Colors.green[400]! : Colors.blue[400]!,
+                  width: 1,
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    _useApi ? Icons.cloud : Icons.storage,
+                    color: _useApi ? Colors.green[400] : Colors.blue[400],
+                    size: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _useApi ? "Режим: Яндекс API" : "Режим: Локальный словарь",
+                    style: GoogleFonts.pangolin(
+                      fontSize: 16,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 30),
 
             _modeButton(
               context: context,
@@ -114,7 +212,10 @@ class ModeScreen extends StatelessWidget {
               buttonColor: Colors.indigo[400],
               onPressed: () =>
                   Navigator.push(context, MaterialPageRoute(
-                      builder: (_) => const GameScreen(wordLength: 4))),
+                      builder: (_) => GameScreen(
+                        wordLength: 4,
+                        useApi: _useApi,
+                      ))),
             ),
             _modeButton(
               context: context,
@@ -122,7 +223,10 @@ class ModeScreen extends StatelessWidget {
               buttonColor: Colors.deepPurple[400],
               onPressed: () =>
                   Navigator.push(context, MaterialPageRoute(
-                      builder: (_) => const GameScreen(wordLength: 5))),
+                      builder: (_) => GameScreen(
+                        wordLength: 5,
+                        useApi: _useApi,
+                      ))),
             ),
             _modeButton(
               context: context,
@@ -130,7 +234,10 @@ class ModeScreen extends StatelessWidget {
               buttonColor: Colors.purple[400],
               onPressed: () =>
                   Navigator.push(context, MaterialPageRoute(
-                      builder: (_) => const GameScreen(wordLength: 6))),
+                      builder: (_) => GameScreen(
+                        wordLength: 6,
+                        useApi: _useApi,
+                      ))),
             ),
             _modeButton(
               context: context,
@@ -142,6 +249,21 @@ class ModeScreen extends StatelessWidget {
             ),
 
             const Spacer(),
+
+            // Подсказка внизу экрана
+            Padding(
+              padding: const EdgeInsets.only(bottom: 20),
+              child: Text(
+                _useApi
+                    ? "Слова проверяются через Яндекс Словарь"
+                    : "Слова проверяются по локальному списку",
+                style: GoogleFonts.pangolin(
+                  fontSize: 14,
+                  color: Colors.white54,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
           ],
         ),
       ),

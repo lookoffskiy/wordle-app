@@ -3,15 +3,18 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../domain/game/game_model.dart';
 import '../../core/storage/stats_repository.dart';
 import '../../UI/widgets/keyboard.dart';
+import '../../core/api/yandex_dictionary_repository.dart';
 
 class GameScreen extends StatefulWidget {
   final int wordLength;
   final String? targetWord;
+  final bool useApi;
 
   const GameScreen({
     super.key,
     required this.wordLength,
     this.targetWord,
+    this.useApi = true,
   });
 
   @override
@@ -22,6 +25,7 @@ class _GameScreenState extends State<GameScreen> {
   late WordleGame game;
   bool isLoading = true;
   bool _isGameOverDialogShown = false;
+  bool _isCheckingWord = false;
 
   @override
   void initState() {
@@ -30,9 +34,18 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   Future<void> _initializeGame() async {
+    YandexDictionaryRepository? dictionaryRepository;
+
+    if (widget.useApi) {
+      dictionaryRepository = YandexDictionaryRepository(
+        apiKey: 'dict.1.1.20251130T173105Z.997642bdb75df6c8.60aecc9bcd835bc3056a24650f0b513e7cef40ed',
+      );
+    }
+
     game = WordleGame(
       wordLength: widget.wordLength,
       customWord: widget.targetWord,
+      dictionaryRepository: dictionaryRepository, // Может быть null
     );
     await game.loadWords();
     setState(() {
@@ -52,17 +65,30 @@ class _GameScreenState extends State<GameScreen> {
     });
   }
 
-  void _handleSubmit() {
+  // Изменен на асинхронный метод
+  Future<void> _handleSubmit() async {
+    if (_isCheckingWord) return;
+
     setState(() {
-      game.submitGuess();
+      _isCheckingWord = true;
     });
 
-    // Проверяем, нужно ли показать диалог окончания игры
-    if (game.gameOver && !_isGameOverDialogShown) {
-      _isGameOverDialogShown = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _showGameOverDialog();
-      });
+    try {
+      await game.submitGuess();
+
+      // Проверяем, нужно ли показать диалог окончания игры
+      if (game.gameOver && !_isGameOverDialogShown) {
+        _isGameOverDialogShown = true;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _showGameOverDialog();
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCheckingWord = false;
+        });
+      }
     }
   }
 
@@ -125,6 +151,7 @@ class _GameScreenState extends State<GameScreen> {
               ElevatedButton(
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.orange[600]),
                 onPressed: () {
+                  Navigator.pop(context);
                   Navigator.pop(context);
                 },
                 child: Text(

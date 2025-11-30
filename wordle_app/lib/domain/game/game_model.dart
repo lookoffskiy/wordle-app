@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show rootBundle;
+import '../../core/api/yandex_dictionary_repository.dart';
 
 class WordleGame {
   final int wordLength;
@@ -13,9 +14,15 @@ class WordleGame {
   String errorMessage = "";
 
   List<String> targetWords = [];
-  List<String> checkWords = [];
+  List<String> checkWords = []; // Слова для проверки
 
-  WordleGame({required this.wordLength, String? customWord}) {
+  final YandexDictionaryRepository? dictionaryRepository;
+
+  WordleGame({
+    required this.wordLength,
+    String? customWord,
+    this.dictionaryRepository,
+  }) {
     if (customWord != null) {
       targetWord = customWord.toUpperCase().replaceAll('Ё', 'Е');
     }
@@ -23,14 +30,7 @@ class WordleGame {
 
   Future<void> loadWords() async {
     try {
-      // Загружаем основной словарь для проверки слов
-      String dictContent = await rootBundle.loadString('assets/dict/dict.txt');
-      List<String> allDictWords = dictContent.split('\n')
-          .map((word) => word.trim().toUpperCase().replaceAll('Ё', 'Е'))
-          .where((word) => word.isNotEmpty)
-          .toList();
-
-      // Загружаем слова для загадывания в зависимости от длины
+      // Загружаем слова для загадывания из локальных файлов
       String targetWordsFile = _getWordListPath(wordLength, forGuessing: true);
       String targetContent = await rootBundle.loadString(targetWordsFile);
       targetWords = targetContent.split('\n')
@@ -38,9 +38,12 @@ class WordleGame {
           .where((word) => word.length == wordLength && word.isNotEmpty)
           .toList();
 
-      // Формируем checkWords: все слова из основного словаря нужной длины
-      checkWords = allDictWords
-          .where((word) => word.length == wordLength)
+      // Загружаем слова для проверки из основного словаря
+      String checkWordsFile = _getWordListPath(wordLength, forGuessing: false);
+      String checkContent = await rootBundle.loadString(checkWordsFile);
+      checkWords = checkContent.split('\n')
+          .map((word) => word.trim().toUpperCase().replaceAll('Ё', 'Е'))
+          .where((word) => word.length == wordLength && word.isNotEmpty)
           .toList();
 
       // Добавляем targetWords в checkWords если их там нет
@@ -50,15 +53,76 @@ class WordleGame {
         }
       }
 
-      // Выбираем случайное слово, если не задано кастомное
+      // Выбираем случайное слово
       if (targetWord.isEmpty) {
         final random = Random();
         targetWord = targetWords[random.nextInt(targetWords.length)];
       }
 
+      print("Loaded ${targetWords.length} target words and ${checkWords.length} check words for length $wordLength");
+      print("Using API: ${dictionaryRepository != null}");
+
     } catch (e) {
       print("Error loading words: $e");
       throw Exception("Не удалось загрузить словари. Проверьте файлы в assets/dict/");
+    }
+  }
+
+  Future<void> submitGuess() async {
+    if (currentGuess.length == wordLength && !gameOver) {
+      if (dictionaryRepository != null) {
+        print("Checking word with Yandex API: $currentGuess");
+        await _checkWordWithYandex(currentGuess);
+      } else {
+        print("Checking word locally: $currentGuess");
+        _checkWordLocally(currentGuess);
+      }
+    }
+  }
+
+  Future<void> _checkWordWithYandex(String word) async {
+    try {
+      // Проверяем что репозиторий не null (дополнительная проверка)
+      if (dictionaryRepository == null) {
+        print("DictionaryRepository is null, falling back to local check");
+        _checkWordLocally(word);
+        return;
+      }
+
+      final exists = await dictionaryRepository!.checkWordExists(word);
+
+      if (exists) {
+        errorMessage = "";
+        _processGuess();
+      } else {
+        errorMessage = "Слово не найдено в словаре!";
+        print("Word '$word' not found in Yandex dictionary");
+        // Автоматически очищаем сообщение через 2 секунды
+        Future.delayed(const Duration(seconds: 2), () {
+          errorMessage = "";
+        });
+      }
+    } catch (e) {
+      // Если API недоступно, проверяем по локальному списку
+      print("Yandex API error: $e, falling back to local check");
+      errorMessage = "Ошибка API, проверяем локально...";
+      _checkWordLocally(word);
+    }
+  }
+
+  void _checkWordLocally(String word) {
+    print("Local check for '$word'. Check words list: ${checkWords.length} words");
+    print("Check words contains '$word': ${checkWords.contains(word)}");
+
+    if (checkWords.contains(word)) {
+      errorMessage = "";
+      _processGuess();
+    } else {
+      errorMessage = "Слово не найдено в локальном словаре!";
+      print("Word '$word' not found in local dictionary");
+      Future.delayed(const Duration(seconds: 2), () {
+        errorMessage = "";
+      });
     }
   }
 
@@ -71,6 +135,7 @@ class WordleGame {
         default: return 'assets/dict/five_letter.txt';
       }
     } else {
+      // Для проверки используем основной словарь
       return 'assets/dict/dict.txt';
     }
   }
@@ -86,21 +151,6 @@ class WordleGame {
     if (!gameOver && currentGuess.isNotEmpty) {
       currentGuess = currentGuess.substring(0, currentGuess.length - 1);
       errorMessage = "";
-    }
-  }
-
-  void submitGuess() {
-    if (currentGuess.length == wordLength && !gameOver) {
-      if (checkWords.contains(currentGuess)) {
-        errorMessage = "";
-        _processGuess();
-      } else {
-        errorMessage = "Слово не в словаре!";
-        // Автоматически очищаем сообщение через 2 секунды
-        Future.delayed(const Duration(seconds: 2), () {
-          errorMessage = "";
-        });
-      }
     }
   }
 
@@ -167,7 +217,9 @@ class WordleGame {
     victory = false;
     usedLetters.clear();
     errorMessage = "";
-    targetWord = targetWords[random.nextInt(targetWords.length)];
+    if (targetWords.isNotEmpty) {
+      targetWord = targetWords[random.nextInt(targetWords.length)];
+    }
   }
 
   // Геттер для получения буквы в определенной позиции (для отрисовки)
@@ -203,6 +255,7 @@ class WordleGame {
           correctPositions++;
         }
       }
+
       // Считаем количество этой буквы в текущей догадке до текущей позиции
       int occurrencesBefore = 0;
       for (int i = 0; i <= col; i++) {
@@ -210,10 +263,13 @@ class WordleGame {
           occurrencesBefore++;
         }
       }
+
+      // Если это вхождение должно быть желтым
       if (occurrencesBefore <= targetCount - correctPositions) {
         return Colors.orange;
       }
     }
+
     // Серый цвет для остальных случаев
     return Colors.grey[700]!;
   }
