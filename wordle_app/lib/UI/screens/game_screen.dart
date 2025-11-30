@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../domain/game/game_model.dart';
 import '../../core/storage/stats_repository.dart';
-import '../../UI/widgets/keyboard.dart'; // Импорт клавиатуры
+import '../../UI/widgets/keyboard.dart';
 
 class GameScreen extends StatefulWidget {
   final int wordLength;
@@ -126,7 +126,6 @@ class _GameScreenState extends State<GameScreen> {
                 style: ElevatedButton.styleFrom(backgroundColor: Colors.orange[600]),
                 onPressed: () {
                   Navigator.pop(context);
-                  Navigator.pop(context); // Возврат в меню
                 },
                 child: Text(
                   "В меню",

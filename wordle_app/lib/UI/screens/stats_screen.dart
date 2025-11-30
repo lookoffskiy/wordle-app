@@ -1,4 +1,3 @@
-// stats_screen.dart — ОБНОВЛЯЕТСЯ СРАЗУ ПОСЛЕ СБРОСА!
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:wordle_app/core/storage/stats_repository.dart';

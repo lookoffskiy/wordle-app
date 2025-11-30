@@ -1,10 +1,9 @@
-// data/models/stats_model.dart
 class GameStats {
   final int gamesPlayed;
   final int gamesWon;
   final int currentStreak;
   final int maxStreak;
-  final List<int> guessDistribution; // [0,0,5,12,8,3] — победы на 1..6 попытке
+  final List<int> guessDistribution;
 
   GameStats({
     required this.gamesPlayed,
