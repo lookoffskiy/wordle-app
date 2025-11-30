@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:wordle_app/home_screen.dart';
-import 'package:wordle_app/mode_screen.dart';
-import 'package:wordle_app/rules_screen.dart';
-import 'package:wordle_app/stats_screen.dart';
-import 'game_screen.dart';
+import 'package:wordle_app/UI/screens/home_screen.dart';
+import 'package:wordle_app/UI/screens/mode_screen.dart';
+import 'package:wordle_app/UI/screens/rules_screen.dart';
+import 'package:wordle_app/UI/screens/stats_screen.dart';
+import 'UI/screens/game_screen.dart';
 
 void main() {
   runApp(const WordleApp());

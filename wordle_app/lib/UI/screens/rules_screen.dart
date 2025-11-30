@@ -46,10 +46,6 @@ class RulesScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
         title: Text(
           "Правила игры",
           style: GoogleFonts.pangolin(
