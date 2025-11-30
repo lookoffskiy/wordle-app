@@ -204,7 +204,7 @@ class _ModeScreenState extends State<ModeScreen> {
               ),
             ),
 
-            const SizedBox(height: 30),
+            const SizedBox(height: 10),
 
             _modeButton(
               context: context,
@@ -249,21 +249,6 @@ class _ModeScreenState extends State<ModeScreen> {
             ),
 
             const Spacer(),
-
-            // Подсказка внизу экрана
-            Padding(
-              padding: const EdgeInsets.only(bottom: 20),
-              child: Text(
-                _useApi
-                    ? "Слова проверяются через Яндекс Словарь"
-                    : "Слова проверяются по локальному списку",
-                style: GoogleFonts.pangolin(
-                  fontSize: 14,
-                  color: Colors.white54,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
           ],
         ),
       ),
